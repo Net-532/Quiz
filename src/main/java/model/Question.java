@@ -4,18 +4,28 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Question {
+    private int id;
     private String questionText;
     private Map<Integer, String> answers = new HashMap<>();
     private int rightAnswer;
 
-    public Question(String questionText, Map<Integer, String> answers, int rightAnswer) {
+    public Question(int id, String questionText, Map<Integer, String> answers, int rightAnswer) {
         if (answers.isEmpty() || rightAnswer < 0 || rightAnswer >= answers.size()) {
             throw new IllegalArgumentException("Invalid answers or right answer index.");
         }
 
+        this.id = id;
         this.questionText = questionText;
         this.answers = answers;
         this.rightAnswer = rightAnswer;
+    }
+
+    public Question(String questionText, Map<Integer, String> answers, int rightAnswer) {
+        this(0, questionText, answers, rightAnswer);
+    }
+
+    public int getId() {
+        return id;
     }
 
     public Map<Integer, String> getAnswers() {
@@ -49,11 +59,9 @@ public class Question {
     }
 
     public void editAnswers(Map<Integer, String> answers) {
-
         if (answers.isEmpty()) {
-            throw new IllegalArgumentException("answer cannot be null.");
+            throw new IllegalArgumentException("Answers cannot be null.");
         }
-
         this.answers = answers;
     }
 
