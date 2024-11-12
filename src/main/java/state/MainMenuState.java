@@ -1,20 +1,20 @@
 package state;
 
 import model.Question;
+import org.hibernate.Hibernate;
+import org.hibernate.Session;
+import service.HibernateQuizService;
 import service.JdbcQuizService;
 import service.QuizService;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
 
 public class MainMenuState implements MenuState {
 
-    private JdbcQuizService quizService;
+    private HibernateQuizService quizService;
     private Scanner scanner = new Scanner(System.in);
 
-    public MainMenuState(JdbcQuizService quizService) {
+    public MainMenuState(HibernateQuizService quizService) {
         this.quizService = quizService;
     }
 
@@ -39,7 +39,11 @@ public class MainMenuState implements MenuState {
             case "4" -> viewAllQuestions();
             case "5" -> startQuiz();
             case "6" -> viewQuestion();
-            case "7" -> System.exit(0);
+            case "7" -> {
+                System.out.println("Exiting...");
+                HibernateQuizService.closeSessionFactory();
+                System.exit(0);
+            }
             default -> System.out.println("Invalid option. Try again.");
         }
     }
@@ -47,14 +51,17 @@ public class MainMenuState implements MenuState {
     private void addQuestion() {
         System.out.println("Enter question text:");
         String questionText = scanner.nextLine();
+
         System.out.println("Enter number of answers:");
         int numAnswers = scanner.nextInt();
         scanner.nextLine();
+
         Map<Integer, String> answers = new HashMap<>();
         for (int i = 0; i < numAnswers; i++) {
             System.out.println("Enter answer " + (i + 1) + ":");
             answers.put(i, scanner.nextLine());
         }
+
         System.out.println("Enter the index of the correct answer:");
         int rightAnswer = scanner.nextInt();
         scanner.nextLine();
@@ -65,7 +72,7 @@ public class MainMenuState implements MenuState {
     }
 
     private void deleteQuestion() {
-        System.out.println("Enter question ID: ");
+        System.out.println("Enter question ID to delete: ");
         int questionId = scanner.nextInt();
         scanner.nextLine();
 
@@ -74,42 +81,57 @@ public class MainMenuState implements MenuState {
     }
 
     private void editQuestion() {
-        System.out.println("Enter question ID: ");
+        System.out.println("Enter question ID to edit: ");
         int questionId = scanner.nextInt();
         scanner.nextLine();
 
-        System.out.println("Enter new text for question: ");
+        System.out.println("Enter new text for question:");
         String newText = scanner.nextLine();
 
         System.out.println("Enter number of answers:");
         int numAnswers = scanner.nextInt();
         scanner.nextLine();
+
         Map<Integer, String> answers = new HashMap<>();
         for (int i = 0; i < numAnswers; i++) {
             System.out.println("Enter answer " + (i + 1) + ":");
             answers.put(i, scanner.nextLine());
         }
+
         System.out.println("Enter the index of the correct answer:");
         int rightAnswer = scanner.nextInt();
         scanner.nextLine();
 
-        Question question = new Question(newText, answers, rightAnswer);
-        quizService.editQuestion(questionId, question);
+        Question newQuestion = new Question(newText, answers, rightAnswer);
+        quizService.editQuestion(questionId, newQuestion);
         System.out.println("Question edited successfully.");
     }
 
     private void viewAllQuestions() {
-        quizService.getAllQuestions().forEach(this::printQuestion);
+        var questions = new HashSet<>(quizService.getAllQuestions());
+        if (questions.isEmpty()) {
+            System.out.println("No questions available.");
+        } else {
+            for (Question question : questions) {
+                printQuestion(question);
+            }
+        }
     }
 
     private void startQuiz() {
         int correctAnswers = 0;
-        int totalQuestions = quizService.getAllQuestions().size();
+        var questions = quizService.getAllQuestions();
 
-        for (Question question : quizService.getAllQuestions()) {
+        if (questions.isEmpty()) {
+            System.out.println("No questions available to start a quiz.");
+            return;
+        }
+
+        for (Question question : questions) {
             System.out.println(question.getQuestionText());
             question.getAnswers().forEach((index, answer) -> System.out.println(index + ": " + answer));
             System.out.println("Your answer (enter the number):");
+
             int userAnswer = scanner.nextInt();
             scanner.nextLine();
 
@@ -121,12 +143,13 @@ public class MainMenuState implements MenuState {
             }
         }
 
-        System.out.println("Quiz finished! You answered correctly " + correctAnswers + " out of " + totalQuestions);
+        System.out.println("Quiz finished! You answered correctly " + correctAnswers + " out of " + questions.size());
     }
 
     private void viewQuestion() {
-        System.out.println("Enter question ID: ");
-        int questionId = Integer.parseInt(scanner.nextLine());
+        System.out.println("Enter question ID to view: ");
+        int questionId = scanner.nextInt();
+        scanner.nextLine();
 
         Question question = quizService.getAllQuestions().stream()
                 .filter(q -> q.getId() == questionId)
@@ -141,7 +164,16 @@ public class MainMenuState implements MenuState {
     }
 
     private void printQuestion(Question question) {
-        System.out.println(question.getQuestionText());
-        question.getAnswers().forEach((key, value) -> System.out.println(key + ": " + value));
+        if (!Hibernate.isInitialized(question.getAnswers())) {
+            try (Session session = HibernateQuizService.getSessionFactory().openSession()) {
+                question = (Question) session.merge(question);
+                Hibernate.initialize(question.getAnswers());
+            }
+        }
+
+        System.out.println("Question ID: " + question.getId());
+        System.out.println("Question: " + question.getQuestionText());
+        question.getAnswers().forEach((index, answer) -> System.out.println(index + ": " + answer));
     }
+
 }

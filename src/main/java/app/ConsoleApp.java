@@ -1,6 +1,7 @@
 package app;
 
 import model.Question;
+import service.HibernateQuizService;
 import service.JdbcQuizService;
 import service.JdbcService;
 import service.QuizService;
@@ -16,25 +17,28 @@ public class ConsoleApp {
 
     private MenuState currentState;
 
-    public ConsoleApp(JdbcQuizService quizService) {
+    public ConsoleApp(HibernateQuizService quizService) {
         this.currentState = new MainMenuState(quizService);
     }
 
     public void run() {
+        Scanner scanner = new Scanner(System.in);
         while (true) {
             currentState.displayMenu();
-            String input = new java.util.Scanner(System.in).nextLine();
+            System.out.print("Choose an option: ");
+            String input = scanner.nextLine();
             currentState.handleInput(input);
         }
     }
 
     public static void main(String[] args) {
-        String connectionString = "jdbc:mysql://localhost/Quiz";
-        String user = "workbench";
-        String password = "workbench";
+        HibernateQuizService quizService = new HibernateQuizService();
 
-        JdbcQuizService quizService = new JdbcQuizService(connectionString, user, password);
         ConsoleApp app = new ConsoleApp(quizService);
+
         app.run();
+
+        HibernateQuizService.closeSessionFactory();
     }
+
 }

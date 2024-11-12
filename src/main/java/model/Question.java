@@ -1,39 +1,49 @@
 package model;
 
+import javax.persistence.*;
 import java.util.HashMap;
 import java.util.Map;
 
+@Entity
+@Table(name = "question")
 public class Question {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
+
+    @Column(name = "question_text", nullable = false)
     private String questionText;
+
+    @ElementCollection
+    @CollectionTable(name = "answer", joinColumns = @JoinColumn(name = "question_id"))
+    @MapKeyColumn(name = "answer_index")
+    @Column(name = "answer_text")
     private Map<Integer, String> answers = new HashMap<>();
+
+    @Column(name = "right_answer")
     private int rightAnswer;
 
-    public Question(int id, String questionText, Map<Integer, String> answers, int rightAnswer) {
+    public Question() {}
+
+    public Question(String questionText, Map<Integer, String> answers, int rightAnswer) {
         if (answers.isEmpty() || rightAnswer < 0 || rightAnswer >= answers.size()) {
             throw new IllegalArgumentException("Invalid answers or right answer index.");
         }
-
-        this.id = id;
         this.questionText = questionText;
         this.answers = answers;
         this.rightAnswer = rightAnswer;
-    }
-
-    public Question(String questionText, Map<Integer, String> answers, int rightAnswer) {
-        this(0, questionText, answers, rightAnswer);
     }
 
     public int getId() {
         return id;
     }
 
-    public Map<Integer, String> getAnswers() {
-        return answers;
-    }
-
     public String getQuestionText() {
         return questionText;
+    }
+
+    public Map<Integer, String> getAnswers() {
+        return answers;
     }
 
     public int getRightAnswer() {
@@ -63,13 +73,5 @@ public class Question {
             throw new IllegalArgumentException("Answers cannot be null.");
         }
         this.answers = answers;
-    }
-
-    public static Question createTestQuestion() {
-        Map<Integer, String> answers = new HashMap<>();
-        answers.put(0, "Answer A");
-        answers.put(1, "Answer B");
-        answers.put(2, "Answer C");
-        return new Question("What is Java?", answers, 1);
     }
 }
